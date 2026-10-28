@@ -1,0 +1,30 @@
+{
+  "name": "kirana-chat-ledger",
+  "version": "1.0.0",
+  "description": "Kirana Chat Ledger: Presented by Aura Farmers",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": { "start": "node src/server.js", "test": "node --test", "dev": "nodemon src/server.js" },
+  "devDependencies": {
+    "nodemon": "^3.1.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/akicha22/Kirana-Aura-Farmers.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/akicha22/Kirana-Aura-Farmers/issues"
+  },
+  "homepage": "https://github.com/akicha22/Kirana-Aura-Farmers#readme",
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "dotenv": "^18.0.9",
+    "express": "^5.3.0"
+  }
+}
