@@ -2,11 +2,19 @@
   "name": "kirana-chat-ledger",
   "version": "1.0.0",
   "description": "Kirana Chat Ledger: Presented by Aura Farmers",
-  "main": "index.js",
+  "main": "src/server.js",
   "directories": {
     "test": "test"
   },
-  "scripts": { "start": "node src/server.js", "test": "node --test", "dev": "nodemon src/server.js" },
+  "scripts": {
+    "setup": "npm install && npm --prefix client install",
+    "build": "npm --prefix client run build",
+    "start": "npm run build && node src/server.js",
+    "server": "node src/server.js",
+    "test": "node --test",
+    "dev": "nodemon src/server.js",
+    "dev:client": "npm --prefix client run dev"
+  },
   "devDependencies": {
     "nodemon": "^3.1.9"
   },
