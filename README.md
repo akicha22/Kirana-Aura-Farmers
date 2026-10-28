@@ -1,87 +1,178 @@
-# Kirana Chat Ledger — Aura Farmers
+# Angadi — Smart Kirana Khata & Profit Ledger
 
-A lightweight kirana inventory ledger. Record sales, incoming stock, damaged items, returns, and undo the last update using natural-language messages. The React dashboard shows live stock and low-stock warnings. WhatsApp integration is optional.
+**Built by Aura Farmers**
 
-## Run locally (Windows PowerShell)
+Small shops handle a lot every day. Stock comes in, things get sold, customers buy on credit, and somehow the shopkeeper has to keep track of all of it. It's easy for things to get confusing when everything is recorded manually.
 
-**Requirements:** Node.js 20.19+ (or a current supported Node.js release) and npm.
+**Angadi is our attempt to make that a little simpler.**
 
-1. Clone the repository and open its folder:
-   ```powershell
-   git clone https://github.com/akicha22/Kirana-Aura-Farmers.git
-   cd Kirana-Aura-Farmers
-   ```
-2. Install backend and frontend dependencies:
-   ```powershell
-   npm.cmd run setup
-   ```
-3. Build the frontend and start the app:
-   ```powershell
-   npm.cmd start
-   ```
-4. Open **http://localhost:3000**. You can also check **http://localhost:3000/api/health**; it should return `{"ok":true}`.
+It's a kirana store management app where shopkeepers can keep track of their stock, record everyday transactions using simple chat messages, manage customer udhar, and get a clearer picture of their profit.
 
-Using `npm.cmd` in PowerShell also avoids common PowerShell script-execution-policy errors involving `npm.ps1`.
+## Live Demo
 
-The local dashboard and stock ledger work without WhatsApp credentials. The first run creates `kirana.db` and seeds sample products. Later runs reuse the same database, so stock changes persist. To reset demo data, stop the server and delete `kirana.db` (and its `kirana.db-shm` / `kirana.db-wal` files if present). This deletes local ledger history.
+🔗 **Demo:** [Add demo link here]
 
-## Try these messages
+## What can you do with Angadi?
 
-- `sold 3 maggi small, 2 milk`
-- `received 20 rice bags`
-- `damaged 1 oil`
-- `returned 2 biscuits`
-- `sold 3 biscuits for 25`
-- `undo`
+- **Chat-based stock updates** — Record sales, incoming stock, damaged items, and returns using everyday messages instead of filling out forms for every transaction.
+- **Inventory tracking** — See available stock, spot low-stock products, and identify high-demand items based on recorded sales.
+- **Customer Khata** — Keep track of who owes money, record credit given to customers, and update payments received.
+- **Profit & Loss** — View daily or monthly summaries of sales, product costs, and losses from damaged stock.
+- **Undo the last update** — Made a mistake while recording a transaction? Use `undo` to reverse the latest eligible update.
+- **WhatsApp integration** — The project includes an optional WhatsApp Cloud API integration, so messages can be used to record transactions through WhatsApp after the required setup.
 
-For `sold 3 maggi`, the app asks which Maggi product you mean before changing stock. The example catalog and starting quantities are demo data in `src/db.js`.
+## A quick look at how it works
 
-## Development mode
+Instead of navigating through multiple forms, you can type messages like these into the chat ledger:
 
-Run the backend and frontend in separate terminals:
-
-Terminal 1:
-```powershell
-npm.cmd run dev
+```text
+sold 3 maggi small, 2 milk
+received 20 rice bags
+damaged 1 oil
+returned 2 biscuits
+Ramesh credit 200
+Ramesh paid 100
+undo
 ```
 
-Terminal 2:
-```powershell
-npm.cmd run dev:client
+Angadi interprets the message and updates the relevant records. When a product name matches multiple items, it can ask you to select the right one before proceeding.
+
+The dashboard brings the main information together, so you don't have to keep checking separate records for stock, customer dues, and business performance.
+
+## Architecture / Flowchart
+
+This is the basic flow from a shopkeeper's message to the records shown in the dashboard. WhatsApp is optional; the local dashboard can be used on its own.
+
+```mermaid
+flowchart TD
+    A[Shopkeeper] --> B[React Dashboard / Chat]
+    A --> C[WhatsApp message - optional]
+    B -->|API request| D[Express Server]
+    C --> E[WhatsApp Cloud API Webhook]
+    E --> F[Conversation Engine]
+    D --> F
+    F --> G[Message Parser]
+    G --> H{Need clarification?}
+    H -->|Yes| I[Ask shopkeeper to choose]
+    I --> B
+    H -->|No| J[Ledger Logic]
+    J --> K[(SQLite Database)]
+    K --> L[Inventory, Khata and P&L queries]
+    L --> M[Dashboard updates]
+    J --> N[WhatsApp reply - optional]
+    N --> C
+    M --> B
 ```
 
-Open the Vite URL shown in Terminal 2 (normally **http://localhost:5173**). API calls are proxied to the backend on port 3000.
+## Tech Stack
 
-Run the backend tests with:
+We used the following technologies to build the project:
+
+| Part | Technology |
+|---|---|
+| Frontend | React, Vite |
+| Backend | Node.js, Express |
+| Database | SQLite with `better-sqlite3` |
+| Messaging integration | WhatsApp Cloud API |
+| Deployment configuration | Render |
+
+## Running it locally
+
+You'll need **Node.js 20.19 or newer and npm**.
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/akicha22/Kirana-Aura-Farmers.git
+cd Kirana-Aura-Farmers
+```
+
+### 2. Install dependencies
+
+On Windows PowerShell, run:
+
+```powershell
+npm.cmd run setup
+```
+
+On other terminals, you can use:
+
+```bash
+npm run setup
+```
+
+### 3. Start the application
+
+On Windows PowerShell:
+
+```powershell
+npm.cmd start
+```
+
+On other terminals:
+
+```bash
+npm start
+```
+
+This builds the frontend and starts the server. Open **http://localhost:3000** in your browser.
+
+You can also check the backend health endpoint at:
+
+http://localhost:3000/api/health
+
+The app starts with sample products for demonstration. Stock changes are stored in a local SQLite database, so they persist between restarts.
+
+### Running the tests
+
+On Windows PowerShell:
+
 ```powershell
 npm.cmd test
 ```
 
-## Optional: connect WhatsApp Cloud API
+Elsewhere:
 
-1. Copy the example environment file:
-   ```powershell
-   Copy-Item .env.example .env
-   ```
-2. Edit `.env` with values from your Meta WhatsApp Cloud API app:
-   - `VERIFY_TOKEN`: a secret phrase you choose and also enter in the Meta webhook setup.
-   - `ALLOWED_NUMBERS`: allowed sender phone number(s), country code included, digits only. Separate multiple numbers with commas.
-   - `WHATSAPP_TOKEN`: a valid access token.
-   - `PHONE_NUMBER_ID`: the WhatsApp Cloud API phone-number ID (not the displayed phone number).
-   - `WHATSAPP_APP_SECRET`: the Meta app secret. Set it to enforce webhook request-signature verification; leave blank only for local webhook testing.
-   - `GRAPH_VERSION`: the Graph API version configured for your app.
-3. Start the app using `npm.cmd start`.
-4. Expose port 3000 through your tunnel and configure the Meta callback URL as `https://YOUR-TUNNEL-URL/webhook`. Set the same `VERIFY_TOKEN` in Meta and subscribe to the `messages` webhook field.
-5. Verify the callback with Meta's webhook setup. The local health endpoint is `/api/health`; the WhatsApp verification route is `/webhook`.
+```bash
+npm test
+```
 
-**Important:** Never commit `.env`, access tokens, app secrets, or real customer data. WhatsApp messages from numbers not listed in `ALLOWED_NUMBERS` are ignored. Test with demo data before relying on the ledger in a real shop.
+## WhatsApp setup
 
-## Project layout
+WhatsApp integration is optional. The dashboard and its local ledger can be used without WhatsApp credentials.
 
-- `src/server.js` — Express API and static frontend hosting
-- `src/parser.js` — natural-language stock update parser
-- `src/engine.js` and `src/ledger.js` — conversation flow, stock updates, and undo
-- `src/db.js` — SQLite schema and demo catalog
-- `src/whatsapp.js` — WhatsApp webhook and outbound replies
-- `client/` — React + Vite dashboard
-- `test/` — parser, ledger, engine, and webhook tests
+To connect WhatsApp, you'll need a Meta WhatsApp Cloud API setup, the relevant credentials, and a publicly reachable webhook URL. The project includes an `.env.example` file to help you configure the required environment variables.
+
+**Keep your access tokens and app secrets private. Never commit your real `.env` file to GitHub.**
+
+## Project structure
+
+Here's a quick overview of the codebase:
+
+```text
+Kirana-Aura-Farmers/
+├── client/          # React frontend and dashboard
+├── src/
+│   ├── server.js    # Express server and API routes
+│   ├── parser.js    # Understands chat commands
+│   ├── engine.js    # Handles conversation flow
+│   ├── ledger.js    # Stock, Khata and P&L logic
+│   ├── db.js        # SQLite database and sample data
+│   └── whatsapp.js  # WhatsApp webhook integration
+├── test/            # Automated backend tests
+├── .env.example     # Environment variable template
+├── package.json
+└── README.md
+```
+
+## A note on the project
+
+Angadi is built around a simple idea: managing a small shop shouldn't require shopkeepers to juggle multiple complicated records just to understand what's happening in their business.
+
+The aim is to make everyday entries easier, keep important information in one place, and help local shop owners make more informed decisions.
+
+The profit figures depend on the costs and transactions recorded in the system. They are useful summaries, not a complete accounting statement covering every business expense.
+
+---
+
+**Built with care by Aura Farmers.**
