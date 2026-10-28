@@ -4,10 +4,10 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm install && npm --prefix client install && npm --prefix client run build
-    startCommand: node src/server.js
+    buildCommand: npm install && npm --prefix client install && npm run build
+    startCommand: npm run server
     healthCheckPath: /api/health
-    autoDeployTrigger: off
+    autoDeploy: true
     envVars:
       - key: NODE_ENV
         value: production
