@@ -10,7 +10,7 @@ It's a kirana store management app where shopkeepers can keep track of their sto
 
 ## Live Demo
 
-🔗 **Demo:** [[Add demo link here](https://angadi.ai.studio/)]
+🔗 **Demo:** [[Angadi by AURA FARMERS](https://angadi.ai.studio/)]
 
 ## What can you do with Angadi?
 
