@@ -4,11 +4,14 @@ const path = require('node:path');
 const express = require('express');
 const { openDb } = require('./db');
 const { createEngine, listProducts } = require('./engine');
+const { createWhatsAppRouter, configFromEnv, makeSender } = require('./whatsapp');
 
-function createApp(db) {
+function createApp(db, opts = {}) {
   const app = express();
   const engine = createEngine(db);
-  app.use(express.json({ limit: '10kb' }));
+
+  // keep the raw body: the WhatsApp signature check needs the exact bytes
+  app.use(express.json({ limit: '100kb', verify: (req, res, buf) => { req.rawBody = buf; } }));
 
   app.get('/api/health', (req, res) => res.json({ ok: true }));
   app.get('/api/products', (req, res) => res.json(listProducts(db)));
@@ -26,11 +29,16 @@ function createApp(db) {
     }
   });
 
-  // Serves the React build (created in the next step) so one process handles everything.
+  // WhatsApp webhook: must come before the static-file catch-all below
+  const waConfig = opts.whatsapp?.config ?? configFromEnv();
+  const waSend = opts.whatsapp?.send ?? makeSender(waConfig);
+  app.use('/webhook', createWhatsAppRouter({ db, engine, config: waConfig, send: waSend }));
+
+  // Serves the React build so one process handles everything.
   const dist = path.join(__dirname, '..', 'client', 'dist');
   if (fs.existsSync(dist)) {
     app.use(express.static(dist));
-    app.get(/^\/(?!api).*/, (req, res) => res.sendFile(path.join(dist, 'index.html')));
+    app.get(/^\/(?!api|webhook).*/, (req, res) => res.sendFile(path.join(dist, 'index.html')));
   }
 
   app.use((err, req, res, next) => {  // e.g. malformed JSON
