@@ -13,13 +13,15 @@ A lightweight kirana inventory ledger. Record sales, incoming stock, damaged ite
    ```
 2. Install backend and frontend dependencies:
    ```powershell
-   npm run setup
+   npm.cmd run setup
    ```
 3. Build the frontend and start the app:
    ```powershell
-   npm start
+   npm.cmd start
    ```
 4. Open **http://localhost:3000**. You can also check **http://localhost:3000/api/health**; it should return `{"ok":true}`.
+
+Using `npm.cmd` in PowerShell also avoids common PowerShell script-execution-policy errors involving `npm.ps1`.
 
 The local dashboard and stock ledger work without WhatsApp credentials. The first run creates `kirana.db` and seeds sample products. Later runs reuse the same database, so stock changes persist. To reset demo data, stop the server and delete `kirana.db` (and its `kirana.db-shm` / `kirana.db-wal` files if present). This deletes local ledger history.
 
@@ -40,19 +42,19 @@ Run the backend and frontend in separate terminals:
 
 Terminal 1:
 ```powershell
-npm run dev
+npm.cmd run dev
 ```
 
 Terminal 2:
 ```powershell
-npm run dev:client
+npm.cmd run dev:client
 ```
 
 Open the Vite URL shown in Terminal 2 (normally **http://localhost:5173**). API calls are proxied to the backend on port 3000.
 
 Run the backend tests with:
 ```powershell
-npm test
+npm.cmd test
 ```
 
 ## Optional: connect WhatsApp Cloud API
@@ -68,7 +70,7 @@ npm test
    - `PHONE_NUMBER_ID`: the WhatsApp Cloud API phone-number ID (not the displayed phone number).
    - `WHATSAPP_APP_SECRET`: the Meta app secret. Set it to enforce webhook request-signature verification; leave blank only for local webhook testing.
    - `GRAPH_VERSION`: the Graph API version configured for your app.
-3. Start the app using `npm start`.
+3. Start the app using `npm.cmd start`.
 4. Expose port 3000 through your tunnel and configure the Meta callback URL as `https://YOUR-TUNNEL-URL/webhook`. Set the same `VERIFY_TOKEN` in Meta and subscribe to the `messages` webhook field.
 5. Verify the callback with Meta's webhook setup. The local health endpoint is `/api/health`; the WhatsApp verification route is `/webhook`.
 
