@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: kirana-aura-farmers
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm --prefix client install && npm --prefix client run build
+    startCommand: node src/server.js
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 24.22.1
+      - key: VERIFY_TOKEN
+        generateValue: true
+      - key: ALLOWED_NUMBERS
+        sync: false
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_APP_SECRET
+        sync: false
