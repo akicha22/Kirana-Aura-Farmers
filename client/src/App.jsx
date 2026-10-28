@@ -1,16 +1,30 @@
 import { useCallback, useEffect, useState } from 'react';
 import Chat from './Chat';
 import StockTable from './StockTable';
-import { getProducts } from './api';
+import Khata from './Khata';
+import PnL from './PnL';
+import { getProducts, getCustomers, getPnL } from './api';
 
 export default function App() {
   const [products, setProducts] = useState([]);
+  const [khataSummary, setKhataSummary] = useState({ totalDue: 0, customersWithDue: 0 });
+  const [todayPnL, setTodayPnL] = useState(null);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState('chat');
+  const [mainView, setMainView] = useState('inventory'); // 'inventory' | 'khata' | 'pnl'
 
-  const refresh = useCallback(async () => {
+  // Mobile sub-tab for inventory view (chat vs stock)
+  const [mobileSubTab, setMobileSubTab] = useState('chat');
+
+  const refreshAll = useCallback(async () => {
     try {
-      setProducts(await getProducts());
+      const [prods, khata, pnl] = await Promise.all([
+        getProducts(),
+        getCustomers().catch(() => ({ totalDue: 0, customersWithDue: 0 })),
+        getPnL('day').catch(() => null),
+      ]);
+      setProducts(prods);
+      setKhataSummary(khata);
+      setTodayPnL(pnl);
       setError(false);
     } catch {
       setError(true);
@@ -18,38 +32,75 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 4000);
+    refreshAll();
+    const t = setInterval(refreshAll, 5000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [refreshAll]);
 
   const lowCount = products.filter((p) => p.low).length;
-  const totalUnits = products.reduce((sum, p) => sum + p.stock, 0);
+  const totalUnits = products.reduce((sum, p) => sum + (p.stock || 0), 0);
+  const highDemandCount = products.filter((p) => p.isHighDemand).length;
 
   return (
     <div className="app">
+      {/* Top Bar with Angadi Branding and Primary Nav */}
       <header className="topbar">
         <div className="brand-lockup">
-          <div className="brand-mark" aria-hidden="true"><span>क</span></div>
+          <div className="brand-mark" aria-hidden="true"><span>ಅ</span></div>
           <div className="brand-copy">
-            <h1>Kirana <span>Aura</span></h1>
-            <p>SMART INVENTORY <i /> AURA FARMERS</p>
+            <h1>Angadi <span>अंगडी</span></h1>
+            <p>SMART KIRANA <i /> KHATA &amp; PROFIT LEDGER</p>
           </div>
         </div>
+
+        {/* 3-Zone Clean Navigation Links */}
+        <nav className="main-nav" aria-label="Primary navigation">
+          <button
+            type="button"
+            className={`nav-link ${mainView === 'inventory' ? 'active' : ''}`}
+            onClick={() => setMainView('inventory')}
+          >
+            📦 Shelf &amp; Chat
+          </button>
+          <button
+            type="button"
+            className={`nav-link ${mainView === 'khata' ? 'active' : ''}`}
+            onClick={() => setMainView('khata')}
+          >
+            📒 Customer Khata
+            {khataSummary.customersWithDue > 0 && (
+              <span className="nav-badge warn">{khataSummary.customersWithDue}</span>
+            )}
+          </button>
+          <button
+            type="button"
+            className={`nav-link ${mainView === 'pnl' ? 'active' : ''}`}
+            onClick={() => setMainView('pnl')}
+          >
+            📊 Profit &amp; Loss
+            {todayPnL && (
+              <span className={`nav-badge ${todayPnL.netProfit >= 0 ? 'profit' : 'loss'}`}>
+                {todayPnL.netProfit >= 0 ? '+₹' : '-₹'}{Math.abs(todayPnL.netProfit)}
+              </span>
+            )}
+          </button>
+        </nav>
+
         <div className="topbar-right">
           <span className={'server-pill ' + (error ? 'offline' : '')}>
-            <i /> {error ? 'Connection issue' : 'Inventory dashboard'}
+            <i /> {error ? 'Offline' : 'Angadi Live'}
           </span>
-          <div className="avatar" title="Aura Farmers">AF</div>
+          <div className="avatar" title="Angadi Kirana Store">AG</div>
         </div>
       </header>
 
+      {/* Hero Welcome Banner */}
       <section className="welcome">
         <div className="welcome-copy">
-          <p className="eyebrow">YOUR STORE, IN CONTROL</p>
-          <h2>Every sale. Every shelf.<br /><span>All in one place.</span></h2>
+          <p className="eyebrow">ANGADI · YOUR STORE, IN CONTROL</p>
+          <h2>Track sales. Settle Khata.<br /><span>See your real profit.</span></h2>
           <p className="welcome-description">
-            A simpler way to track your kirana store. Just type what happened and let your ledger do the counting.
+            Your neighborhood kirana companion. Record sales, track customer udhar, detect high-demand staples, and calculate true net profit including damaged items.
           </p>
         </div>
         <div className="welcome-card">
@@ -57,66 +108,119 @@ export default function App() {
             <span className="art-sun" />
             <span className="art-leaf leaf-one">✳</span>
             <span className="art-leaf leaf-two">✳</span>
-            <span className="art-bag">▤</span>
+            <span className="art-bag">ಅ</span>
           </div>
           <div className="welcome-card-copy">
-            <span className="mini-label">MADE FOR EVERYDAY BUSINESS</span>
-            <strong>Less paperwork.<br />More peace of mind.</strong>
-            <span className="art-caption"><i /> Simple. Clear. Ready for the day.</span>
+            <span className="mini-label">ANGADI STORE LEDGER</span>
+            <strong>Simpler counts.<br />Better business.</strong>
+            <span className="art-caption"><i /> Always balanced. Ready for the day.</span>
           </div>
         </div>
       </section>
 
-      <section className="stats-grid" aria-label="Inventory summary">
-        <article className="stat-card">
+      {/* Store Overview Metric Cards */}
+      <section className="stats-grid" aria-label="Store summary">
+        <article className="stat-card" onClick={() => setMainView('inventory')} style={{ cursor: 'pointer' }}>
           <div className="stat-icon icon-products" aria-hidden="true">▦</div>
           <div className="stat-content">
-            <span className="stat-label">PRODUCTS TRACKED</span>
+            <span className="stat-label">PRODUCTS ON SHELF</span>
             <strong>{String(products.length).padStart(2, '0')}</strong>
-            <small>In your catalogue</small>
+            <small>{totalUnits.toLocaleString('en-IN')} units total</small>
           </div>
         </article>
-        <article className="stat-card">
-          <div className="stat-icon icon-units" aria-hidden="true">↗</div>
+
+        <article
+          className={'stat-card' + (highDemandCount > 0 ? ' stat-demand' : '')}
+          onClick={() => setMainView('inventory')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-icon icon-demand" aria-hidden="true">★</div>
           <div className="stat-content">
-            <span className="stat-label">UNITS ON HAND</span>
-            <strong>{totalUnits.toLocaleString('en-IN')}</strong>
-            <small>Across all products</small>
+            <span className="stat-label">HIGH DEMAND ITEMS</span>
+            <strong>{String(highDemandCount).padStart(2, '0')}</strong>
+            <small>Selling the fastest</small>
           </div>
         </article>
-        <article className={'stat-card' + (lowCount > 0 ? ' stat-alert' : '')}>
-          <div className="stat-icon icon-alert" aria-hidden="true">!</div>
+
+        <article
+          className={'stat-card' + (khataSummary.customersWithDue > 0 ? ' stat-alert' : '')}
+          onClick={() => setMainView('khata')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-icon icon-khata" aria-hidden="true">₹</div>
           <div className="stat-content">
-            <span className="stat-label">LOW-STOCK ALERTS</span>
-            <strong>{String(lowCount).padStart(2, '0')}</strong>
-            <small>{lowCount > 0 ? 'Items need attention' : 'Everything looks stocked'}</small>
+            <span className="stat-label">OUTSTANDING UDHAR</span>
+            <strong className="font-mono">₹{khataSummary.totalDue.toLocaleString('en-IN')}</strong>
+            <small>{khataSummary.customersWithDue} customer{khataSummary.customersWithDue === 1 ? '' : 's'} owe money</small>
           </div>
-          {lowCount > 0 && <span className="alert-dot" aria-label="Low stock alert" />}
+          {khataSummary.customersWithDue > 0 && <span className="alert-dot" aria-label="Pending dues" />}
+        </article>
+
+        <article
+          className={'stat-card' + (todayPnL && todayPnL.netProfit < 0 ? ' stat-alert' : '')}
+          onClick={() => setMainView('pnl')}
+          style={{ cursor: 'pointer' }}
+        >
+          <div className="stat-icon icon-profit" aria-hidden="true">↗</div>
+          <div className="stat-content">
+            <span className="stat-label">TODAY'S NET PROFIT</span>
+            <strong className="font-mono" style={{ color: todayPnL && todayPnL.netProfit < 0 ? '#b91c1c' : '#15803d' }}>
+              {todayPnL ? `${todayPnL.netProfit >= 0 ? '+' : ''}₹${todayPnL.netProfit}` : '₹0'}
+            </strong>
+            <small>{todayPnL ? `Margin ${todayPnL.profitMargin}%` : 'Daily margin'}</small>
+          </div>
         </article>
       </section>
 
-      <nav className="tabs" aria-label="Dashboard sections">
-        <button type="button" className={tab === 'chat' ? 'on' : ''} onClick={() => setTab('chat')}>
-          <span aria-hidden="true">✎</span> Chat ledger
-        </button>
-        <button type="button" className={tab === 'stock' ? 'on' : ''} onClick={() => setTab('stock')}>
-          <span aria-hidden="true">▦</span> Stock overview
-          {lowCount > 0 && <span className="dot">{lowCount}</span>}
-        </button>
-      </nav>
+      {/* Main View Switcher Content */}
+      {mainView === 'inventory' && (
+        <>
+          {/* Mobile switcher between Chat & Stock */}
+          <nav className="tabs" aria-label="Dashboard sections">
+            <button
+              type="button"
+              className={mobileSubTab === 'chat' ? 'on' : ''}
+              onClick={() => setMobileSubTab('chat')}
+            >
+              <span aria-hidden="true">✎</span> Chat ledger
+            </button>
+            <button
+              type="button"
+              className={mobileSubTab === 'stock' ? 'on' : ''}
+              onClick={() => setMobileSubTab('stock')}
+            >
+              <span aria-hidden="true">▦</span> Shelf stock ({products.length})
+              {lowCount > 0 && <span className="dot">{lowCount}</span>}
+            </button>
+          </nav>
 
-      <main className="panels">
-        <div className={'panel ' + (tab === 'chat' ? 'active' : '')}>
-          <Chat onChange={refresh} />
-        </div>
-        <div className={'panel ' + (tab === 'stock' ? 'active' : '')}>
-          <StockTable products={products} error={error} onRetry={refresh} />
-        </div>
-      </main>
+          <main className="panels">
+            <div className={'panel ' + (mobileSubTab === 'chat' ? 'active' : '')}>
+              <Chat onChange={refreshAll} />
+            </div>
+            <div className={'panel ' + (mobileSubTab === 'stock' ? 'active' : '')}>
+              <StockTable products={products} error={error} onRetry={refreshAll} />
+            </div>
+          </main>
+        </>
+      )}
 
+      {mainView === 'khata' && (
+        <main className="panel-full">
+          <Khata onCustomerUpdated={refreshAll} />
+        </main>
+      )}
+
+      {mainView === 'pnl' && (
+        <main className="panel-full">
+          <PnL />
+        </main>
+      )}
+
+      {/* Footer */}
       <footer className="footer">
-        <span><span className="footer-mark">✳</span> Kirana Aura <span className="footer-separator">/</span> by Aura Farmers</span>
-        <span>Keep your store moving.</span>
+        <span><span className="footer-mark">✳</span> Angadi · Traditional Kirana Ledger</span>
+        <span>Every sale. Every rupee. In your control.</span>
       </footer>
     </div>
   );

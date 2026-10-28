@@ -1,14 +1,18 @@
 const { parseMessage } = require('./parser');
-const { applyStock, undoLast } = require('./ledger');
+const {
+  applyStock,
+  undoLast,
+  recordCustomerCredit,
+  recordCustomerPayment,
+  listProductsWithDemand,
+} = require('./ledger');
 
 const PENDING_TTL_MS = 10 * 60 * 1000;
 const money = (n) => '₹' + (Number.isInteger(n) ? n : n.toFixed(2));
 const arrow = (c) => `${c.name} ${c.before} → ${c.after}`;
 
 function listProducts(db) {
-  return db.prepare('SELECT id, name, price, stock, min_stock FROM products ORDER BY name')
-    .all()
-    .map((p) => ({ ...p, low: p.stock <= p.min_stock }));
+  return listProductsWithDemand(db);
 }
 
 function createEngine(db, { now = Date.now } = {}) {
@@ -50,9 +54,9 @@ function createEngine(db, { now = Date.now } = {}) {
   }
 
   function lowStockLines(changes) {
-    const ids = [...new Set(changes.map((c) => c.productId))];
+    const ids = [...new Set(changes.map((c) => c.productId).filter(Boolean))];
     return ids.map((id) => getProduct.get(id))
-      .filter((p) => p.stock <= p.min_stock)
+      .filter((p) => p && p.stock <= p.min_stock)
       .map((p) => `⚠️ Low stock: ${p.name} (${p.stock} left, reorder at ${p.min_stock})`);
   }
 
@@ -64,7 +68,7 @@ function createEngine(db, { now = Date.now } = {}) {
     let explicit = false;
     items.forEach((it, i) => {
       const c = res.changes[i];
-      if (c.type === 'sold' && it.amount != null) {
+      if (c && c.type === 'sold' && it.amount != null) {
         explicit = true;
         lines.push(`${c.name}: ${money(it.amount)} total (${money(it.amount / c.qty)} each)`);
       }
@@ -105,7 +109,8 @@ function createEngine(db, { now = Date.now } = {}) {
       case 'undo': {
         const r = undoLast(db, { source });
         if (!r.ok) return { kind: 'error', reply: r.message };
-        return { kind: 'undo', reply: `Undone: ${r.changes.map(arrow).join(', ')}`, changes: r.changes };
+        const changeStr = r.changes.map((c) => c.productId ? arrow(c) : `${c.name} balance ₹${c.newBalance}`).join(', ');
+        return { kind: 'undo', reply: `Undone: ${changeStr}`, changes: r.changes };
       }
       case 'error':
         return { kind: 'error', reply: parsed.message };
@@ -113,6 +118,26 @@ function createEngine(db, { now = Date.now } = {}) {
         const np = { items: parsed.items, pending: parsed.pending, expires: now() + PENDING_TTL_MS };
         pendingBySender.set(sender, np);
         return ask(np);
+      }
+      case 'customer_tx': {
+        if (parsed.action === 'credit') {
+          const res = recordCustomerCredit(db, { customerName: parsed.customerName, amount: parsed.amount, source });
+          if (!res.ok) return { kind: 'error', reply: res.message };
+          return {
+            kind: 'updated',
+            reply: `📒 Credit Recorded: ₹${parsed.amount} for ${res.name}\nTotal balance due: ₹${res.balance}`,
+            customerTx: res,
+          };
+        } else if (parsed.action === 'payment') {
+          const res = recordCustomerPayment(db, { customerName: parsed.customerName, amount: parsed.amount, source });
+          if (!res.ok) return { kind: 'error', reply: res.message };
+          return {
+            kind: 'updated',
+            reply: `✅ Payment Received: ₹${parsed.amount} from ${res.name}\nRemaining balance due: ₹${res.balance}`,
+            customerTx: res,
+          };
+        }
+        return { kind: 'error', reply: 'Could not process customer transaction.' };
       }
       default:
         return apply(parsed.items, source);

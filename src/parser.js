@@ -150,12 +150,46 @@ function matchPhrase(phrase, cat) {
   return [...found];
 }
 
+function parseCustomerTx(text) {
+  const s = text.trim();
+  // 1. Credit / Udhar
+  // e.g. "credit 200 to Ramesh", "credit 200 Ramesh", "udhar 200 Ramesh", "khata 200 Ramesh"
+  let m = s.match(/^(?:credit|udhar|khata)\s+(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s+(?:to\s+|for\s+)?([a-zA-Z\s]+)$/i);
+  if (m) return { kind: 'customer_tx', action: 'credit', amount: parseFloat(m[1]), customerName: m[2].trim() };
+
+  // e.g. "Ramesh credit 200", "Ramesh udhar 200", "Ramesh khata 200"
+  m = s.match(/^([a-zA-Z\s]+?)\s+(?:credit|udhar|khata)\s+(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)$/i);
+  if (m) return { kind: 'customer_tx', action: 'credit', amount: parseFloat(m[2]), customerName: m[1].trim() };
+
+  // e.g. "credit Ramesh 200", "udhar Ramesh 200"
+  m = s.match(/^(?:credit|udhar|khata)\s+([a-zA-Z\s]+?)\s+(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)$/i);
+  if (m) return { kind: 'customer_tx', action: 'credit', amount: parseFloat(m[2]), customerName: m[1].trim() };
+
+  // 2. Payment / Jama
+  // e.g. "Ramesh paid 150", "Ramesh jama 150", "Ramesh payment 150"
+  m = s.match(/^([a-zA-Z\s]+?)\s+(?:paid|jama|gave|payment)\s+(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)$/i);
+  if (m) return { kind: 'customer_tx', action: 'payment', amount: parseFloat(m[2]), customerName: m[1].trim() };
+
+  // e.g. "paid 150 Ramesh", "payment 150 from Ramesh", "jama 150 Ramesh"
+  m = s.match(/^(?:payment|jama|paid)\s+(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)\s+(?:from\s+|by\s+)?([a-zA-Z\s]+)$/i);
+  if (m) return { kind: 'customer_tx', action: 'payment', amount: parseFloat(m[1]), customerName: m[2].trim() };
+
+  // e.g. "payment Ramesh 150", "jama Ramesh 150"
+  m = s.match(/^(?:payment|jama|paid)\s+([a-zA-Z\s]+?)\s+(?:rs\.?|₹)?\s*(\d+(?:\.\d+)?)$/i);
+  if (m) return { kind: 'customer_tx', action: 'payment', amount: parseFloat(m[2]), customerName: m[1].trim() };
+
+  return null;
+}
+
 /* ---------- public API ---------- */
 
 function parseMessage(text, db) {
   if (typeof text !== 'string' || !text.trim()) return err(HELP);
   if (text.length > MAX_LEN) return err('That message is too long. Please send shorter updates.');
   if (UNDO_RE.test(text)) return { kind: 'undo' };
+
+  const custTx = parseCustomerTx(text);
+  if (custTx) return custTx;
 
   const raws = normalize(text).split(SPLIT_RE).map(parseSegment).filter(Boolean);
   if (raws.length === 0 || raws.every((r) => !r.type && r.qtyTok == null)) return err(HELP);
